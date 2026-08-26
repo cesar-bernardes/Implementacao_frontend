@@ -1,0 +1,3 @@
+import { ProductBuilder } from './product-builder';
+import styles from '../platform.module.css';
+export default function Products(){return <main className={styles.main}><div className={styles.heading}><div><span>Produtos e metodologia própria</span><h1>GD Frotas</h1></div><button className={styles.button}>+ Criar produto</button></div><div className={styles.productMeta}><span><small>PRODUTO</small><strong>GD Frotas</strong></span><span><small>VERSÃO</small><strong>1 — Publicada</strong></span><span><small>ESTRUTURA</small><strong>10 fases · 49 perguntas</strong></span></div><ProductBuilder /></main>}

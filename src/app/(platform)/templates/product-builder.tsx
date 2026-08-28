@@ -80,6 +80,14 @@ export function ProductBuilder() {
     if (saved) setEditor(null);
   }
 
+  async function deleteQuestion(index: number) {
+    const question = phase.questions[index];
+    if (!question || !window.confirm(`Excluir a pergunta ${question[0]}? Ela também será removida das implementações após salvar.`)) return;
+    const nextPhases = phases.map((item) => item.code === phase.code ? { ...item, questions: item.questions.filter((_, questionIndex) => questionIndex !== index) } : item);
+    setPhases(nextPhases);
+    await persistProduct(nextPhases, 'Pergunta excluída. As implementações já foram sincronizadas.');
+  }
+
   async function persistProduct(nextPhases: EditablePhase[], successMessage: string) {
     if (!versionId) return false;
     setSaving(true); setMessage('');
@@ -120,7 +128,7 @@ export function ProductBuilder() {
           <span className={styles.order}>{index + 1}</span><div><small>{code} · {type}</small><strong>{question}</strong></div>
           {config?.trainingUrl ? <a className={styles.trainingLink} href={config.trainingUrl} target="_blank" rel="noreferrer">Treinamento ↗</a> : null}
           {required ? <span className={styles.required}>Obrigatória</span> : <span className={styles.optional}>Opcional</span>}
-          <button type="button" aria-label={`Editar ${code}`} onClick={() => openEditQuestion(index)}>•••</button>
+          <div className={styles.questionActions}><button type="button" aria-label={`Editar ${code}`} onClick={() => openEditQuestion(index)}>•••</button><button type="button" className={styles.questionDelete} aria-label={`Excluir ${code}`} onClick={() => deleteQuestion(index)}>×</button></div>
         </div>)}</div>
       </article>
 

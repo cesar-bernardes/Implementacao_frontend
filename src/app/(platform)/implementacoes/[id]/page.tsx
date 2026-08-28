@@ -137,7 +137,7 @@ export default function ImplementationPage({ params }: { params: Promise<{ id: s
         })}
       </aside>
       <article className={styles.implementationQuestions}>
-        <header style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 20, flexWrap: 'wrap', borderBottom: '2px solid #cbd6cc' }}><div><small>{phase.code}</small><h2>{phase.name}</h2><p>{phase.questions.length} perguntas nesta fase</p></div><div style={{ display: 'grid', gap: 4, padding: '8px 12px', border: '1px solid #dce5d9', borderRadius: 9, background: '#f7faf5', minWidth: 178, marginLeft: 'auto' }}><small style={{ color: '#748178', fontSize: 8, letterSpacing: '.08em' }}>DATA PLANEJADA</small><strong style={{ fontSize: 12, fontWeight: 800, color: '#132018' }}>{phasePlanning.get(phase.code)?.period ?? 'A definir'}</strong></div></header>
+        <header style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 20, flexWrap: 'wrap', borderBottom: '2px solid #1f1f1f' }}><div><small>{phase.code}</small><h2>{phase.name}</h2><p>{phase.questions.length} perguntas nesta fase</p></div><div style={{ display: 'grid', gap: 4, padding: '8px 12px', border: '1px solid #dce5d9', borderRadius: 9, background: '#f7faf5', minWidth: 178, marginLeft: 'auto' }}><small style={{ color: '#748178', fontSize: 8, letterSpacing: '.08em' }}>DATA PLANEJADA</small><strong style={{ fontSize: 12, fontWeight: 800, color: '#132018' }}>{phasePlanning.get(phase.code)?.period ?? 'A definir'}</strong></div></header>
         <div>{phase.questions.map((question) => <QuestionAnswer key={question.id} question={question} onSave={(body) => saveAnswer(question.id, body)} />)}</div>
       </article>
     </section>}
@@ -165,7 +165,7 @@ function QuestionAnswer({ question, onSave }: { question: Question; onSave: (bod
     setSaving(false);
   }
 
-  return <section className={styles.liveQuestion} style={{ borderBottom: '2px solid #cbd6cc' }}>
+  return <section className={styles.liveQuestion} style={{ borderBottom: '2px solid #1f1f1f' }}>
     <div className={styles.liveQuestionTitle}><span>{question.code}</span><div><strong>{question.prompt}</strong><div className={styles.questionMeta}><small>{question.required ? 'Obrigatória' : 'Opcional'}</small></div></div>{isCompleted(question) ? <b>Concluído</b> : isAnswered(question) ? <b data-progress>Em andamento</b> : <b data-empty>Não respondida</b>}</div>
     <div className={styles.answerControlRow}>
       {question.responseType === 'CHECKLIST' ? <select aria-label={`Resposta de ${question.code}`} value={question.checklistValue ?? ''} disabled={saving} onChange={(event) => selectChecklist(event.target.value)}><option value="" disabled>Selecione uma situação</option><option value="COMPLETED">Concluído</option><option value="IN_PROGRESS">Em andamento</option><option value="NOT_DONE">Não realizado</option></select> : <form onSubmit={submit}><input name="value" type={question.responseType === 'NUMBER' ? 'number' : 'text'} maxLength={question.responseType === 'SHORT_TEXT' ? 100 : undefined} defaultValue={question.numberValue ?? question.textValue ?? ''} required /><button className={styles.secondaryButton} disabled={saving}>{saving ? 'Salvando…' : 'Salvar resposta'}</button></form>}

@@ -1,21 +1,22 @@
 'use client';
 
-import { FormEvent, useEffect, useRef, useState } from 'react';
+import { FormEvent, useEffect, useState } from 'react';
+import { apiRequest } from '../../../lib/api';
 import { productPhases } from '../../_data/demo';
 import styles from '../platform.module.css';
 
-type AnswerConfig = { options?: string[]; min?: string; max?: string; decimals?: boolean; placeholder?: string; maxLength?: string };
+type AnswerConfig = { options?: string[]; min?: string; max?: string; decimals?: boolean; placeholder?: string; maxLength?: string; trainingUrl?: string };
 type EditableQuestion = [code: string, text: string, type: string, required: boolean, config?: AnswerConfig];
-type EditablePhase = { code: string; name: string; order: number; questions: EditableQuestion[] };
+type EditablePhase = { code: string; name: string; order: number; isBase: boolean; durationWeeks: number; meetingsPerWeek: number; questions: EditableQuestion[] };
 type EditorState = { phaseCode: string; questionIndex: number | null; code: string; text: string; type: string; required: boolean; config: AnswerConfig };
+type ApiQuestion = { code: string; text: string; type: string; required: boolean; config?: AnswerConfig };
+type ApiPhase = Omit<EditablePhase, 'questions'> & { questions: ApiQuestion[] };
+type ProductConfiguration = Array<{ templates: Array<{ versions: Array<{ id: string; definition: { phases?: ApiPhase[] } }> }> }>;
 
 const initialPhases: EditablePhase[] = productPhases.map((item) => ({
-  code: item.code,
-  name: item.name,
-  order: item.order,
+  code: item.code, name: item.name, order: item.order, isBase: false, durationWeeks: 1, meetingsPerWeek: 1,
   questions: item.questions.map(([code, text, type, required]) => [code, text, type, required, undefined]),
 }));
-
 const responseTypes = ['Caixa de seleção', 'Número', 'Texto curto'];
 
 function defaultConfig(type: string): AnswerConfig {
@@ -24,27 +25,36 @@ function defaultConfig(type: string): AnswerConfig {
   return {};
 }
 
+function normalizePhases(phases?: ApiPhase[]): EditablePhase[] {
+  if (!phases?.length) return initialPhases;
+  return phases.map((phase, index) => ({
+    code: phase.code, name: phase.name, order: phase.order ?? index + 1, isBase: Boolean(phase.isBase),
+    durationWeeks: Math.max(1, Number(phase.durationWeeks) || 1), meetingsPerWeek: Math.max(0, Number(phase.meetingsPerWeek) || 0),
+    questions: phase.questions.map((question) => [question.code, question.text, question.type, question.required, question.config]),
+  }));
+}
+
 export function ProductBuilder() {
   const [phases, setPhases] = useState<EditablePhase[]>(initialPhases);
   const [selected, setSelected] = useState('F01');
+  const [versionId, setVersionId] = useState('');
   const [editor, setEditor] = useState<EditorState | null>(null);
-  const loadedFromStorage = useRef(false);
+  const [saving, setSaving] = useState(false);
+  const [message, setMessage] = useState('');
   const phase = phases.find((item) => item.code === selected) ?? phases[0];
 
   useEffect(() => {
-    const saved = window.localStorage.getItem('gdtech.productPhases');
-    const timer = window.setTimeout(() => {
-      if (saved) {
-        try { setPhases(JSON.parse(saved) as EditablePhase[]); } catch { /* mantém os dados de demonstração */ }
-      }
-      loadedFromStorage.current = true;
-    }, 0);
-    return () => window.clearTimeout(timer);
+    apiRequest<ProductConfiguration>('/products/configuration').then((products) => {
+      const version = products[0]?.templates[0]?.versions[0];
+      if (!version) throw new Error('Nenhuma versão publicada encontrada.');
+      setVersionId(version.id);
+      setPhases(normalizePhases(version.definition.phases));
+    }).catch((error: unknown) => setMessage(error instanceof Error ? error.message : 'Não foi possível carregar o produto.'));
   }, []);
 
-  useEffect(() => {
-    if (loadedFromStorage.current) window.localStorage.setItem('gdtech.productPhases', JSON.stringify(phases));
-  }, [phases]);
+  function updatePhase(values: Partial<EditablePhase>) {
+    setPhases((current) => current.map((item) => item.code === phase.code ? { ...item, ...values } : item));
+  }
 
   function openNewQuestion() {
     setEditor({ phaseCode: phase.code, questionIndex: null, code: `${phase.code}-${String(phase.questions.length + 1).padStart(2, '0')}`, text: '', type: 'Caixa de seleção', required: true, config: defaultConfig('Caixa de seleção') });
@@ -62,75 +72,67 @@ export function ProductBuilder() {
       if (item.code !== editor.phaseCode) return item;
       const question: EditableQuestion = [editor.code, editor.text.trim(), editor.type, editor.required, editor.config];
       const questions = [...item.questions];
-      if (editor.questionIndex === null) questions.push(question);
-      else questions[editor.questionIndex] = question;
+      if (editor.questionIndex === null) questions.push(question); else questions[editor.questionIndex] = question;
       return { ...item, questions };
     }));
     setEditor(null);
   }
 
-  return (
+  async function saveProduct() {
+    if (!versionId) return;
+    setSaving(true); setMessage('');
+    try {
+      await apiRequest(`/products/template-versions/${versionId}/configuration`, {
+        method: 'PATCH',
+        body: JSON.stringify({ phases: phases.map((item) => ({ ...item, questions: item.questions.map(([code, text, type, required, config]) => ({ code, text, type, required, config })) })) }),
+      });
+      setMessage('Produto salvo. Módulos, prazos e treinamentos já estão disponíveis para novas empresas.');
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : 'Não foi possível salvar o produto.');
+    } finally { setSaving(false); }
+  }
+
+  return <>
+    <div className={styles.productSaveBar}><div><strong>Configuração comercial e de implantação</strong><span>Defina módulos base, duração, reuniões e materiais de treinamento.</span></div><button className={styles.button} type="button" disabled={saving || !versionId} onClick={saveProduct}>{saving ? 'Salvando…' : 'Salvar produto'}</button></div>
+    {message ? <p className={styles.productMessage} role="status">{message}</p> : null}
     <section className={styles.builder}>
       <aside className={styles.phaseList}>
-        <div className={styles.builderHeader}><span>ESTRUTURA DO PRODUTO</span><strong>Fases</strong></div>
-        {phases.map((item) => (
-          <button key={item.code} type="button" data-active={item.code === phase.code} onClick={() => setSelected(item.code)}>
-            <small>{item.code}</small><span>{item.name}</span><b>{item.questions.length}</b>
-          </button>
-        ))}
-        <button type="button" className={styles.addPhase}>+ Adicionar fase</button>
+        <div className={styles.builderHeader}><span>MÓDULOS DO PRODUTO</span><strong>Fases contratáveis</strong></div>
+        {phases.map((item) => <button key={item.code} type="button" data-active={item.code === phase.code} onClick={() => setSelected(item.code)}><small>{item.code}</small><span>{item.name}</span><b>{item.isBase ? 'Base' : item.questions.length}</b></button>)}
       </aside>
-
       <article className={styles.questionPanel}>
-        <div className={styles.panelHeading}>
-          <div><span>FASE {phase.order}</span><h2>{phase.name}</h2><p>{phase.questions.length} perguntas nesta fase</p></div>
-          <button className={styles.button} type="button" onClick={openNewQuestion}>+ Nova pergunta</button>
-        </div>
-        <div className={styles.questionList}>
-          {phase.questions.map(([code, question, type, required], index) => (
-            <div className={styles.questionItem} key={code}>
-              <span className={styles.order}>{index + 1}</span>
-              <div><small>{code} · {type}</small><strong>{question}</strong></div>
-              {required ? <span className={styles.required}>Obrigatória</span> : <span className={styles.optional}>Opcional</span>}
-              <button type="button" aria-label={`Editar ${code}`} onClick={() => openEditQuestion(index)}>•••</button>
-            </div>
-          ))}
-        </div>
+        <div className={styles.panelHeading}><div><span>MÓDULO {phase.order}</span><h2>{phase.name}</h2><p>{phase.questions.length} tarefas nesta fase</p></div><button className={styles.button} type="button" onClick={openNewQuestion}>+ Nova pergunta</button></div>
+        <section className={styles.moduleConfiguration}>
+          <label className={styles.requiredToggle}><input type="checkbox" checked={phase.isBase} onChange={(event) => updatePhase({ isBase: event.target.checked })} /><span><strong>Módulo base</strong><small>Será incluído obrigatoriamente em toda venda deste produto.</small></span></label>
+          <label>Duração prevista (semanas)<input type="number" min="1" max="52" value={phase.durationWeeks} onChange={(event) => updatePhase({ durationWeeks: Number(event.target.value) || 1 })} /></label>
+          <label>Reuniões por semana<input type="number" min="0" max="7" value={phase.meetingsPerWeek} onChange={(event) => updatePhase({ meetingsPerWeek: Number(event.target.value) || 0 })} /></label>
+          <div><small>PLANEJAMENTO DO MÓDULO</small><strong>{phase.durationWeeks} semana(s) · {phase.durationWeeks * phase.meetingsPerWeek} reunião(ões)</strong></div>
+        </section>
+        <div className={styles.questionList}>{phase.questions.map(([code, question, type, required, config], index) => <div className={styles.questionItem} key={code}>
+          <span className={styles.order}>{index + 1}</span><div><small>{code} · {type}</small><strong>{question}</strong></div>
+          {config?.trainingUrl ? <a className={styles.trainingLink} href={config.trainingUrl} target="_blank" rel="noreferrer">Treinamento ↗</a> : null}
+          {required ? <span className={styles.required}>Obrigatória</span> : <span className={styles.optional}>Opcional</span>}
+          <button type="button" aria-label={`Editar ${code}`} onClick={() => openEditQuestion(index)}>•••</button>
+        </div>)}</div>
       </article>
 
-      {editor ? (
-        <div className={styles.editorBackdrop} role="presentation">
-          <form className={styles.questionEditor} role="dialog" aria-modal="true" aria-labelledby="question-editor-title" onSubmit={saveQuestion}>
-            <div className={styles.editorHeader}><div><span>{editor.questionIndex === null ? 'NOVA PERGUNTA' : 'EDITAR PERGUNTA'}</span><h2 id="question-editor-title">Configurar pergunta</h2></div><button type="button" className={styles.editorClose} aria-label="Fechar" onClick={() => setEditor(null)}>×</button></div>
-            <div className={styles.editorBody}>
-              <label className={styles.editorField}>Pergunta<textarea value={editor.text} onChange={(event) => setEditor({ ...editor, text: event.target.value })} rows={4} placeholder="Digite a pergunta que será respondida pela empresa" autoFocus required /></label>
-              <div className={styles.editorGrid}>
-                <label className={styles.editorField}>Tipo de resposta<select value={editor.type} onChange={(event) => setEditor({ ...editor, type: event.target.value, config: defaultConfig(event.target.value) })}>{responseTypes.map((type) => <option key={type} value={type}>{type}</option>)}</select><small>Define o formato que a empresa verá ao responder.</small></label>
-                <label className={styles.editorField}>Código interno<input value={editor.code} onChange={(event) => setEditor({ ...editor, code: event.target.value })} disabled={editor.questionIndex !== null} /></label>
-              </div>
-              <AnswerConfiguration editor={editor} onChange={setEditor} />
-              <label className={styles.requiredToggle}><input type="checkbox" checked={editor.required} onChange={(event) => setEditor({ ...editor, required: event.target.checked })} /><span><strong>Obrigatória</strong><small>A implementação não avança enquanto esta pergunta estiver pendente.</small></span></label>
-            </div>
-            <div className={styles.editorActions}><button type="button" className={styles.editorCancel} onClick={() => setEditor(null)}>Cancelar</button><button type="submit" className={styles.button}>Salvar pergunta</button></div>
-          </form>
+      {editor ? <div className={styles.editorBackdrop} role="presentation"><form className={styles.questionEditor} role="dialog" aria-modal="true" aria-labelledby="question-editor-title" onSubmit={saveQuestion}>
+        <div className={styles.editorHeader}><div><span>{editor.questionIndex === null ? 'NOVA PERGUNTA' : 'EDITAR PERGUNTA'}</span><h2 id="question-editor-title">Configurar pergunta</h2></div><button type="button" className={styles.editorClose} aria-label="Fechar" onClick={() => setEditor(null)}>×</button></div>
+        <div className={styles.editorBody}>
+          <label className={styles.editorField}>Pergunta<textarea value={editor.text} onChange={(event) => setEditor({ ...editor, text: event.target.value })} rows={4} placeholder="Digite a tarefa da implementação" autoFocus required /></label>
+          <div className={styles.editorGrid}><label className={styles.editorField}>Tipo de resposta<select value={editor.type} onChange={(event) => setEditor({ ...editor, type: event.target.value, config: { ...defaultConfig(event.target.value), trainingUrl: editor.config.trainingUrl } })}>{responseTypes.map((type) => <option key={type} value={type}>{type}</option>)}</select></label><label className={styles.editorField}>Código interno<input value={editor.code} onChange={(event) => setEditor({ ...editor, code: event.target.value })} disabled={editor.questionIndex !== null} /></label></div>
+          <AnswerConfiguration editor={editor} onChange={setEditor} />
+          <label className={styles.editorField}>Link de treinamento<input type="url" value={editor.config.trainingUrl ?? ''} onChange={(event) => setEditor({ ...editor, config: { ...editor.config, trainingUrl: event.target.value } })} placeholder="https://..." /><small>O botão será exibido na implementação, mas só poderá ser alterado aqui no Produto.</small></label>
+          <label className={styles.requiredToggle}><input type="checkbox" checked={editor.required} onChange={(event) => setEditor({ ...editor, required: event.target.checked })} /><span><strong>Obrigatória</strong><small>A fase não avança enquanto esta tarefa estiver pendente.</small></span></label>
         </div>
-      ) : null}
+        <div className={styles.editorActions}><button type="button" className={styles.editorCancel} onClick={() => setEditor(null)}>Cancelar</button><button type="submit" className={styles.button}>Salvar pergunta</button></div>
+      </form></div> : null}
     </section>
-  );
+  </>;
 }
 
 function AnswerConfiguration({ editor, onChange }: { editor: EditorState; onChange: (next: EditorState) => void }) {
-  if (editor.type === 'Caixa de seleção') {
-    return <div className={styles.answerConfig}><strong>Opções de resposta</strong><div className={styles.answerPreview}><span>Concluído</span><span>Em andamento</span><span>Não realizado</span></div><small>A empresa escolherá uma situação para esta pergunta.</small></div>;
-  }
-  if (editor.type === 'Número') {
-    return <div className={styles.answerConfig}><strong>Formato do número</strong><div className={styles.editorGrid}><label className={styles.editorField}>Mínimo<input type="number" value={editor.config.min ?? ''} onChange={(event) => onChange({ ...editor, config: { ...editor.config, min: event.target.value } })} placeholder="Sem mínimo" /></label><label className={styles.editorField}>Máximo<input type="number" value={editor.config.max ?? ''} onChange={(event) => onChange({ ...editor, config: { ...editor.config, max: event.target.value } })} placeholder="Sem máximo" /></label></div><label className={styles.inlineCheck}><input type="checkbox" checked={editor.config.decimals ?? false} onChange={(event) => onChange({ ...editor, config: { ...editor.config, decimals: event.target.checked } })} /><span>Aceitar casas decimais</span></label></div>;
-  }
-  if (editor.type === 'Texto curto') {
-    return <div className={styles.answerConfig}><strong>Texto curto</strong><div className={styles.editorGrid}><label className={styles.editorField}>Texto de ajuda<input value={editor.config.placeholder ?? ''} onChange={(event) => onChange({ ...editor, config: { ...editor.config, placeholder: event.target.value } })} placeholder="Ex.: Informe o nome da unidade" /></label><label className={styles.editorField}>Limite de caracteres<input type="number" min="1" max="100" value="100" readOnly /></label></div><small>O texto será limitado a 100 caracteres.</small></div>;
-  }
-  if (editor.type === 'Data') {
-    return <div className={styles.answerConfig}><strong>Formato da data</strong><small>A empresa responderá usando um seletor de data.</small></div>;
-  }
-  return <div className={styles.answerConfig}><strong>Resposta numérica</strong><small>A empresa informará um número para esta pergunta.</small></div>;
+  if (editor.type === 'Caixa de seleção') return <div className={styles.answerConfig}><strong>Opções de resposta</strong><div className={styles.answerPreview}><span>Concluído</span><span>Em andamento</span><span>Não realizado</span></div><small>A empresa escolherá uma situação para esta tarefa.</small></div>;
+  if (editor.type === 'Número') return <div className={styles.answerConfig}><strong>Formato do número</strong><div className={styles.editorGrid}><label className={styles.editorField}>Mínimo<input type="number" value={editor.config.min ?? ''} onChange={(event) => onChange({ ...editor, config: { ...editor.config, min: event.target.value } })} placeholder="Sem mínimo" /></label><label className={styles.editorField}>Máximo<input type="number" value={editor.config.max ?? ''} onChange={(event) => onChange({ ...editor, config: { ...editor.config, max: event.target.value } })} placeholder="Sem máximo" /></label></div></div>;
+  return <div className={styles.answerConfig}><strong>Texto curto</strong><small>O texto será limitado a 100 caracteres.</small></div>;
 }

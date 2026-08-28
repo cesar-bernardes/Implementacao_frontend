@@ -1,3 +1,40 @@
-import { phases } from '../../_data/demo';
+'use client';
+
+import { useEffect, useState } from 'react';
+import { apiRequest } from '../../../lib/api';
 import styles from '../platform.module.css';
-export default function Dashboard(){return <main className={styles.main}><div className={styles.heading}><div><span>Operação GD Tech</span><h1>Visão geral</h1></div><button className={styles.button}>+ Nova implementação</button></div><section className={styles.stats}><article className={styles.stat}><span>Implementações ativas</span><strong>1</strong><small>Dentro do planejado</small></article><article className={styles.stat}><span>Progresso médio</span><strong>18%</strong><small>+6% nesta semana</small></article><article className={styles.stat}><span>Pendências abertas</span><strong>7</strong><small>2 aguardando cliente</small></article><article className={styles.stat}><span>Riscos altos</span><strong>2</strong><small>Exigem acompanhamento</small></article></section><section className={styles.columns}><article className={styles.card}><h2>Implantação piloto — Viação Horizonte</h2><div className={styles.progress}>{phases.slice(0,7).map(([name,value])=><div className={styles.progressRow} key={name}><span>{name}</span><div className={styles.bar}><i style={{width:`${value}%`}}/></div><strong>{value}%</strong></div>)}</div></article><article className={styles.card}><h2>Atividade recente</h2><ul className={styles.activity}><li>Pré-requisito QL-01 concluído<small>Rafael Champion · há 18 min</small></li><li>Base de veículos anexada<small>Cliente · ontem, 16:42</small></li><li>Kickoff agendado<small>Carlos Implementador · ontem</small></li><li>Implementação iniciada<small>Sistema · 25 ago</small></li></ul></article></section></main>}
+
+type Organization = {
+  id: string;
+  tradeName: string;
+  implementations: Array<{ id: string; status: string }>;
+  memberships: Array<{ id: string }>;
+};
+
+export default function Dashboard() {
+  const [organizations, setOrganizations] = useState<Organization[] | null>(null);
+  const [error, setError] = useState('');
+
+  useEffect(() => {
+    apiRequest<Organization[]>('/organizations').then(setOrganizations).catch(() => setError('Não foi possível carregar os dados autorizados.'));
+  }, []);
+
+  const implementations = organizations?.flatMap((organization) => organization.implementations) ?? [];
+  const activeImplementations = implementations.filter((implementation) => !['COMPLETED', 'CANCELED'].includes(implementation.status)).length;
+  const linkedMembers = organizations?.reduce((total, organization) => total + organization.memberships.length, 0) ?? 0;
+
+  return <main className={styles.main}>
+    <div className={styles.heading}><div><span>Dados conforme o seu nível de acesso</span><h1>Visão geral</h1></div></div>
+    {error ? <section className={styles.card}><p>{error}</p></section> : null}
+    <section className={styles.stats}>
+      <article className={styles.stat}><span>Empresas visíveis</span><strong>{organizations?.length ?? '—'}</strong><small>Somente empresas autorizadas</small></article>
+      <article className={styles.stat}><span>Implementações ativas</span><strong>{organizations ? activeImplementations : '—'}</strong><small>Em execução no momento</small></article>
+      <article className={styles.stat}><span>Total de implementações</span><strong>{organizations ? implementations.length : '—'}</strong><small>Histórico acessível</small></article>
+      <article className={styles.stat}><span>Vínculos visíveis</span><strong>{organizations ? linkedMembers : '—'}</strong><small>Conforme sua permissão</small></article>
+    </section>
+    <section className={styles.card} style={{ marginTop: 16 }}>
+      <h2>{organizations?.length ? 'Empresas disponíveis para você' : 'Nenhuma empresa disponível'}</h2>
+      <p>{organizations?.length ? organizations.map((organization) => organization.tradeName).join(', ') : 'Seu acesso ainda não possui uma empresa ativa vinculada.'}</p>
+    </section>
+  </main>;
+}

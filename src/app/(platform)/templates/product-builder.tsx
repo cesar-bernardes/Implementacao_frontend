@@ -128,7 +128,7 @@ export function ProductBuilder() {
           <span className={styles.order}>{index + 1}</span><div><small>{code} · {type}</small><strong>{question}</strong></div>
           {config?.trainingUrl ? <a className={styles.trainingLink} href={config.trainingUrl} target="_blank" rel="noreferrer">Treinamento ↗</a> : null}
           {required ? <span className={styles.required}>Obrigatória</span> : <span className={styles.optional}>Opcional</span>}
-          <div className={styles.questionActions}><button type="button" aria-label={`Editar ${code}`} onClick={() => openEditQuestion(index)}>•••</button><button type="button" className={styles.questionDelete} aria-label={`Excluir ${code}`} onClick={() => deleteQuestion(index)}>×</button></div>
+          <div className={styles.questionActions} style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 4 }}><button type="button" aria-label={`Editar ${code}`} onClick={() => openEditQuestion(index)} style={{ display: 'grid', placeItems: 'center', width: 24, height: 24, padding: 0, border: 0, borderRadius: 6, background: 'transparent', color: '#7b887f', fontSize: 11, lineHeight: 1, cursor: 'pointer' }}>•••</button><button type="button" className={styles.questionDelete} aria-label={`Excluir ${code}`} onClick={() => deleteQuestion(index)} style={{ display: 'grid', placeItems: 'center', width: 24, height: 24, padding: 0, border: 0, borderRadius: 6, background: 'transparent', color: '#b86a62', fontSize: 16, lineHeight: 1, cursor: 'pointer' }}>×</button></div>
         </div>)}</div>
       </article>
 

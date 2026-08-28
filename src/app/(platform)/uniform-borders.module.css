@@ -1,0 +1,22 @@
+.uniformBorders :where(div, section, article, aside, header, footer, form, table, thead, tbody, tr, th, td, input, select, textarea) {
+  border-color: #9aa59d !important;
+}
+
+.uniformBorders :where(input, select, textarea):focus {
+  border-color: #78a600 !important;
+}
+
+.uniformBorders select:has(option[value='COMPLETED']:checked),
+.uniformBorders [data-value='Concluído'] {
+  border-color: #9bc887 !important;
+}
+
+.uniformBorders select:has(option[value='IN_PROGRESS']:checked),
+.uniformBorders [data-value='Em andamento'] {
+  border-color: #8fc4df !important;
+}
+
+.uniformBorders select:has(option[value='NOT_DONE']:checked),
+.uniformBorders [data-value='Não realizado'] {
+  border-color: #e5b878 !important;
+}

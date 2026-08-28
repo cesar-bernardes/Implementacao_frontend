@@ -1,0 +1,96 @@
+.phaseHeader {
+  display: flex;
+  min-height: 80px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  border-bottom: 2px solid #7d8880;
+}
+
+.phaseTitle {
+  min-width: 0;
+}
+
+.plannedDate {
+  display: grid;
+  flex: 0 0 178px;
+  gap: 4px;
+  margin-left: auto;
+  padding: 8px 12px;
+  border: 1px solid #dce5d9;
+  border-radius: 9px;
+  background: #f7faf5;
+}
+
+.plannedDate small {
+  color: #748178;
+  font-size: 8px;
+  letter-spacing: .08em;
+}
+
+.plannedDate strong {
+  color: #132018;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.questionRow {
+  border-bottom: 2px solid #7d8880 !important;
+}
+
+.questionTitle {
+  grid-template-columns: 48px minmax(0, 1fr) 92px !important;
+  align-items: start !important;
+}
+
+.questionTitle > b {
+  min-width: 82px;
+  justify-self: end;
+  text-align: center;
+}
+
+.answerRow {
+  grid-template-columns: minmax(0, 1fr) 58px !important;
+  margin-left: 58px;
+}
+
+.answerRow + footer {
+  margin-left: 58px;
+}
+
+.phaseList button {
+  min-height: 68px;
+  color: #243229 !important;
+}
+
+.phaseList button small {
+  color: #65736b !important;
+}
+
+@media (max-width: 700px) {
+  .phaseHeader {
+    align-items: stretch;
+    flex-direction: column;
+    gap: 14px;
+    padding-bottom: 18px;
+  }
+
+  .plannedDate {
+    width: 100%;
+    margin-left: 0;
+  }
+
+  .questionTitle {
+    grid-template-columns: 42px minmax(0, 1fr) !important;
+  }
+
+  .questionTitle > b {
+    grid-column: 2;
+    justify-self: start;
+  }
+
+  .answerRow,
+  .answerRow + footer {
+    margin-left: 0;
+  }
+}

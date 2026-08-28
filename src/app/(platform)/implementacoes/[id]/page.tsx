@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { FormEvent, use, useEffect, useMemo, useState } from 'react';
 import { apiRequest } from '../../../../lib/api';
 import styles from '../../platform.module.css';
+import layout from './implementation-layout.module.css';
 
 type Question = {
   id: string;
@@ -118,7 +119,7 @@ export default function ImplementationPage({ params }: { params: Promise<{ id: s
     {totals.percent === 100 ? <section className={styles.completionCelebration} role="status"><span>✓</span><div><strong>Parabéns! Você concluiu 100% do seu check-list.</strong><p>Todas as fases e etapas desta implementação foram finalizadas com sucesso.</p></div></section> : null}
     {error ? <p className={styles.formError} role="alert">{error}</p> : null}
     {!phase ? <section className={styles.card}><h2>Nenhuma fase encontrada</h2><p>Revise a versão do produto vinculada a esta implementação.</p></section> : <section className={styles.implementationWorkspace}>
-      <aside className={styles.implementationPhases}>
+      <aside className={`${styles.implementationPhases} ${layout.phaseList}`}>
         <div><small>ETAPAS DA IMPLEMENTAÇÃO</small><h2>Fases</h2></div>
         {implementation.phases.map((item) => {
           const completed = item.questions.filter(isCompleted).length;
@@ -137,7 +138,7 @@ export default function ImplementationPage({ params }: { params: Promise<{ id: s
         })}
       </aside>
       <article className={styles.implementationQuestions}>
-        <header style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 20, flexWrap: 'wrap', borderBottom: '2px solid #7d8880' }}><div><small>{phase.code}</small><h2>{phase.name}</h2><p>{phase.questions.length} perguntas nesta fase</p></div><div style={{ display: 'grid', gap: 4, padding: '8px 12px', border: '1px solid #dce5d9', borderRadius: 9, background: '#f7faf5', minWidth: 178, marginLeft: 'auto' }}><small style={{ color: '#748178', fontSize: 8, letterSpacing: '.08em' }}>DATA PLANEJADA</small><strong style={{ fontSize: 12, fontWeight: 800, color: '#132018' }}>{phasePlanning.get(phase.code)?.period ?? 'A definir'}</strong></div></header>
+        <header className={layout.phaseHeader}><div className={layout.phaseTitle}><small>{phase.code}</small><h2>{phase.name}</h2><p>{phase.questions.length} perguntas nesta fase</p></div><div className={layout.plannedDate}><small>DATA PLANEJADA</small><strong>{phasePlanning.get(phase.code)?.period ?? 'A definir'}</strong></div></header>
         <div>{phase.questions.map((question) => <QuestionAnswer key={question.id} question={question} onSave={(body) => saveAnswer(question.id, body)} />)}</div>
       </article>
     </section>}
@@ -165,9 +166,9 @@ function QuestionAnswer({ question, onSave }: { question: Question; onSave: (bod
     setSaving(false);
   }
 
-  return <section className={styles.liveQuestion} style={{ borderBottom: '2px solid #7d8880' }}>
-    <div className={styles.liveQuestionTitle}><span>{question.code}</span><div><strong>{question.prompt}</strong><div className={styles.questionMeta}><small>{question.required ? 'Obrigatória' : 'Opcional'}</small></div></div>{isCompleted(question) ? <b>Concluído</b> : isAnswered(question) ? <b data-progress>Em andamento</b> : <b data-empty>Não respondida</b>}</div>
-    <div className={styles.answerControlRow}>
+  return <section className={`${styles.liveQuestion} ${layout.questionRow}`}>
+    <div className={`${styles.liveQuestionTitle} ${layout.questionTitle}`}><span>{question.code}</span><div><strong>{question.prompt}</strong><div className={styles.questionMeta}><small>{question.required ? 'Obrigatória' : 'Opcional'}</small></div></div>{isCompleted(question) ? <b>Concluído</b> : isAnswered(question) ? <b data-progress>Em andamento</b> : <b data-empty>Não respondida</b>}</div>
+    <div className={`${styles.answerControlRow} ${layout.answerRow}`}>
       {question.responseType === 'CHECKLIST' ? <select aria-label={`Resposta de ${question.code}`} value={question.checklistValue ?? ''} disabled={saving} onChange={(event) => selectChecklist(event.target.value)}><option value="" disabled>Selecione uma situação</option><option value="COMPLETED">Concluído</option><option value="IN_PROGRESS">Em andamento</option><option value="NOT_DONE">Não realizado</option></select> : <form onSubmit={submit}><input name="value" type={question.responseType === 'NUMBER' ? 'number' : 'text'} maxLength={question.responseType === 'SHORT_TEXT' ? 100 : undefined} defaultValue={question.numberValue ?? question.textValue ?? ''} required /><button className={styles.secondaryButton} disabled={saving}>{saving ? 'Salvando…' : 'Salvar resposta'}</button></form>}
       <button className={styles.trainingButton} type="button" data-available={Boolean(question.responseConfig?.trainingUrl)} disabled={!question.responseConfig?.trainingUrl} title={question.responseConfig?.trainingUrl ? 'Abrir treinamento' : 'Cadastre o link na aba Produto'} aria-label={question.responseConfig?.trainingUrl ? `Abrir treinamento de ${question.code}` : `Treinamento ainda não cadastrado para ${question.code}`} onClick={() => setConfirmTraining(true)}><span aria-hidden="true">▶</span><strong>{question.responseConfig?.trainingUrl ? 'Treino' : 'Sem link'}</strong></button>
     </div>

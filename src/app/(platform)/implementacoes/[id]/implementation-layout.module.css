@@ -4,7 +4,7 @@
   align-items: center;
   justify-content: space-between;
   gap: 24px;
-  border-bottom: 2px solid #7d8880;
+  border-bottom: 1px solid #9aa59d;
 }
 
 .phaseTitle {
@@ -35,7 +35,7 @@
 }
 
 .questionRow {
-  border-bottom: 2px solid #7d8880 !important;
+  border-bottom: 1px solid #9aa59d !important;
 }
 
 .questionTitle {

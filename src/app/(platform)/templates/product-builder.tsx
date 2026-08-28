@@ -4,6 +4,7 @@ import { FormEvent, useEffect, useState } from 'react';
 import { apiRequest } from '../../../lib/api';
 import { productPhases } from '../../_data/demo';
 import styles from '../platform.module.css';
+import controls from './product-builder-controls.module.css';
 
 type AnswerConfig = { options?: string[]; min?: string; max?: string; decimals?: boolean; placeholder?: string; maxLength?: string; trainingUrl?: string };
 type EditableQuestion = [code: string, text: string, type: string, required: boolean, config?: AnswerConfig];
@@ -11,7 +12,7 @@ type EditablePhase = { code: string; name: string; order: number; isBase: boolea
 type EditorState = { phaseCode: string; questionIndex: number | null; code: string; text: string; type: string; required: boolean; config: AnswerConfig };
 type ApiQuestion = { code: string; text: string; type: string; required: boolean; config?: AnswerConfig };
 type ApiPhase = Omit<EditablePhase, 'questions'> & { questions: ApiQuestion[] };
-type ProductConfiguration = Array<{ templates: Array<{ versions: Array<{ id: string; definition: { phases?: ApiPhase[] } }> }> }>;
+type ProductConfiguration = Array<{ name: string; templates: Array<{ versions: Array<{ id: string; definition: { phases?: ApiPhase[] } }> }> }>;
 
 const initialPhases: EditablePhase[] = productPhases.map((item) => ({
   code: item.code, name: item.name, order: item.order, isBase: false, durationWeeks: 1, meetingsPerWeek: 1,
@@ -38,7 +39,10 @@ export function ProductBuilder() {
   const [phases, setPhases] = useState<EditablePhase[]>(initialPhases);
   const [selected, setSelected] = useState('F01');
   const [versionId, setVersionId] = useState('');
+  const [productName, setProductName] = useState('GD Frotas');
   const [editor, setEditor] = useState<EditorState | null>(null);
+  const [renamingPhase, setRenamingPhase] = useState(false);
+  const [phaseNameDraft, setPhaseNameDraft] = useState('');
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState('');
   const phase = phases.find((item) => item.code === selected) ?? phases[0];
@@ -47,13 +51,52 @@ export function ProductBuilder() {
     apiRequest<ProductConfiguration>('/products/configuration').then((products) => {
       const version = products[0]?.templates[0]?.versions[0];
       if (!version) throw new Error('Nenhuma versão publicada encontrada.');
+      setProductName(products[0]?.name ?? 'GD Frotas');
       setVersionId(version.id);
-      setPhases(normalizePhases(version.definition.phases));
+      const loadedPhases = normalizePhases(version.definition.phases);
+      setPhases(loadedPhases);
+      setSelected(loadedPhases[0]?.code ?? '');
     }).catch((error: unknown) => setMessage(error instanceof Error ? error.message : 'Não foi possível carregar o produto.'));
   }, []);
 
   function updatePhase(values: Partial<EditablePhase>) {
     setPhases((current) => current.map((item) => item.code === phase.code ? { ...item, ...values } : item));
+  }
+
+  function openRenamePhase() {
+    setPhaseNameDraft(phase.name);
+    setRenamingPhase(true);
+  }
+
+  async function savePhaseName(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const name = phaseNameDraft.trim();
+    if (!name) return;
+    const previousPhases = phases;
+    const nextPhases = phases.map((item) => item.code === phase.code ? { ...item, name } : item);
+    setPhases(nextPhases);
+    const saved = await persistProduct(nextPhases, 'Nome da fase atualizado. As implementações já foram sincronizadas.');
+    if (saved) setRenamingPhase(false); else setPhases(previousPhases);
+  }
+
+  async function deletePhase() {
+    if (phases.length === 1) {
+      setMessage('O produto precisa manter pelo menos uma fase.');
+      return;
+    }
+    if (!window.confirm(`Excluir a fase ${phase.code} · ${phase.name}? As perguntas dela também deixarão de aparecer nas implementações.`)) return;
+    const previousPhases = phases;
+    const phaseIndex = phases.findIndex((item) => item.code === phase.code);
+    const nextPhases = phases.filter((item) => item.code !== phase.code).map((item, index) => ({ ...item, order: index + 1 }));
+    const nextSelected = nextPhases[Math.min(Math.max(phaseIndex, 0), nextPhases.length - 1)]?.code ?? nextPhases[0]?.code ?? '';
+    setPhases(nextPhases);
+    setSelected(nextSelected);
+    setRenamingPhase(false);
+    const saved = await persistProduct(nextPhases, 'Fase excluída. A estrutura e as implementações já foram sincronizadas.');
+    if (!saved) {
+      setPhases(previousPhases);
+      setSelected(phase.code);
+    }
   }
 
   function openNewQuestion() {
@@ -108,7 +151,10 @@ export function ProductBuilder() {
     await persistProduct(phases, 'Produto salvo. Módulos, prazos e treinamentos já foram sincronizados com as implementações.');
   }
 
+  const totalQuestions = phases.reduce((total, item) => total + item.questions.length, 0);
+
   return <>
+    <div className={styles.productMeta}><span><small>PRODUTO</small><strong>{productName}</strong></span><span><small>ESTRUTURA</small><strong>{phases.length} fases · {totalQuestions} perguntas</strong></span></div>
     <div className={styles.productSaveBar}><div><strong>Configuração comercial e de implantação</strong><span>Defina módulos base, duração, reuniões e materiais de treinamento.</span></div><button className={styles.button} type="button" disabled={saving || !versionId} onClick={saveProduct}>{saving ? 'Salvando…' : 'Salvar produto'}</button></div>
     {message ? <p className={styles.productMessage} role="status">{message}</p> : null}
     <section className={styles.builder}>
@@ -117,7 +163,8 @@ export function ProductBuilder() {
         {phases.map((item) => <button key={item.code} type="button" data-active={item.code === phase.code} onClick={() => setSelected(item.code)}><small>{item.code}</small><span>{item.name}</span><b>{item.isBase ? 'Base' : item.questions.length}</b></button>)}
       </aside>
       <article className={styles.questionPanel}>
-        <div className={styles.panelHeading}><div><span>MÓDULO {phase.order}</span><h2>{phase.name}</h2><p>{phase.questions.length} tarefas nesta fase</p></div><button className={styles.button} type="button" onClick={openNewQuestion}>+ Nova pergunta</button></div>
+        <div className={styles.panelHeading}><div><span>MÓDULO {phase.order}</span><h2>{phase.name}</h2><p>{phase.questions.length} tarefas nesta fase</p></div><div className={controls.phaseActions}><button className={controls.phaseAction} type="button" disabled={saving} onClick={openRenamePhase}>Editar fase</button><button className={controls.phaseDelete} type="button" disabled={saving || phases.length === 1} onClick={deletePhase}>Excluir fase</button><button className={styles.button} type="button" disabled={saving} onClick={openNewQuestion}>+ Nova pergunta</button></div></div>
+        {renamingPhase ? <form className={controls.phaseNameEditor} onSubmit={savePhaseName}><label>Nome da fase<input value={phaseNameDraft} maxLength={100} onChange={(event) => setPhaseNameDraft(event.target.value)} autoFocus required /></label><button className={styles.editorCancel} type="button" disabled={saving} onClick={() => setRenamingPhase(false)}>Cancelar</button><button className={styles.button} type="submit" disabled={saving}>{saving ? 'Salvando…' : 'Salvar nome'}</button></form> : null}
         <section className={styles.moduleConfiguration}>
           <label className={styles.requiredToggle}><input type="checkbox" checked={phase.isBase} onChange={(event) => updatePhase({ isBase: event.target.checked })} /><span><strong>Módulo base</strong><small>Será incluído obrigatoriamente em toda venda deste produto.</small></span></label>
           <label>Duração prevista (semanas)<input type="number" min="1" max="52" value={phase.durationWeeks} onChange={(event) => updatePhase({ durationWeeks: Number(event.target.value) || 1 })} /></label>

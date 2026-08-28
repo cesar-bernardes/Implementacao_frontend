@@ -137,7 +137,7 @@ export default function ImplementationPage({ params }: { params: Promise<{ id: s
         })}
       </aside>
       <article className={styles.implementationQuestions}>
-        <header><div><small>{phase.code}</small><h2>{phase.name}</h2><p>{phase.questions.length} perguntas nesta fase</p></div><div style={{ display: 'grid', gap: 5, padding: '10px 13px', border: '1px solid #dce5d9', borderRadius: 9, background: '#f7faf5', minWidth: 190 }}><small style={{ color: '#748178', fontSize: 9, letterSpacing: '.08em' }}>DATA PLANEJADA PARA REALIZAÇÃO</small><strong style={{ fontSize: 12 }}>{phasePlanning.get(phase.code)?.period ?? 'A definir'}</strong></div></header>
+        <header style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 20, flexWrap: 'wrap' }}><div><small>{phase.code}</small><h2>{phase.name}</h2><p>{phase.questions.length} perguntas nesta fase</p></div><div style={{ display: 'grid', gap: 4, padding: '8px 12px', border: '1px solid #dce5d9', borderRadius: 9, background: '#f7faf5', minWidth: 178, marginLeft: 'auto' }}><small style={{ color: '#748178', fontSize: 8, letterSpacing: '.08em' }}>DATA PLANEJADA</small><strong style={{ fontSize: 11 }}>{phasePlanning.get(phase.code)?.period ?? 'A definir'}</strong></div></header>
         <div>{phase.questions.map((question) => <QuestionAnswer key={question.id} question={question} onSave={(body) => saveAnswer(question.id, body)} />)}</div>
       </article>
     </section>}

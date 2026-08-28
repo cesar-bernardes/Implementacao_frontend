@@ -110,7 +110,7 @@ export default function ImplementationPage({ params }: { params: Promise<{ id: s
       </div>
       <div><small>RESPONSÁVEL GD TECH</small><strong>{implementation.owner?.name ?? 'Não definido'}</strong><span>Administrador e responsável atribuído podem atualizar.</span></div>
     </section>
-    <section className={styles.implementationSchedule}>
+    <section className={`${styles.implementationSchedule} ${layout.schedule}`}>
       <div><small>PERÍODO PLANEJADO</small><strong>{implementation.startedAt ? new Date(implementation.startedAt).toLocaleDateString('pt-BR', { timeZone: 'UTC' }) : 'A definir'} → {implementation.dueAt ? new Date(implementation.dueAt).toLocaleDateString('pt-BR', { timeZone: 'UTC' }) : 'A definir'}</strong></div>
       <div><small>MÓDULOS CONTRATADOS</small><strong>{implementation.phases.length}</strong></div>
       <div><small>DURAÇÃO ESTIMADA</small><strong>{implementation.estimatedWeeks} semanas</strong></div>
@@ -118,7 +118,7 @@ export default function ImplementationPage({ params }: { params: Promise<{ id: s
     </section>
     {totals.percent === 100 ? <section className={styles.completionCelebration} role="status"><span>✓</span><div><strong>Parabéns! Você concluiu 100% do seu check-list.</strong><p>Todas as fases e etapas desta implementação foram finalizadas com sucesso.</p></div></section> : null}
     {error ? <p className={styles.formError} role="alert">{error}</p> : null}
-    {!phase ? <section className={styles.card}><h2>Nenhuma fase encontrada</h2><p>Revise a versão do produto vinculada a esta implementação.</p></section> : <section className={styles.implementationWorkspace}>
+    {!phase ? <section className={styles.card}><h2>Nenhuma fase encontrada</h2><p>Revise a versão do produto vinculada a esta implementação.</p></section> : <section className={`${styles.implementationWorkspace} ${layout.workspace}`}>
       <aside className={`${styles.implementationPhases} ${layout.phaseList}`}>
         <div><small>ETAPAS DA IMPLEMENTAÇÃO</small><h2>Fases</h2></div>
         {implementation.phases.map((item) => {

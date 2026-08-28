@@ -1,3 +1,15 @@
+.schedule > div {
+  border-color: #9aa59d !important;
+}
+
+.workspace {
+  border-color: #9aa59d !important;
+}
+
+.phaseList {
+  border-right-color: #9aa59d !important;
+}
+
 .phaseHeader {
   display: flex;
   min-height: 80px;
@@ -92,5 +104,12 @@
   .answerRow,
   .answerRow + footer {
     margin-left: 0;
+  }
+}
+
+@media (max-width: 980px) {
+  .phaseList {
+    border-right: 0 !important;
+    border-bottom: 1px solid #9aa59d !important;
   }
 }

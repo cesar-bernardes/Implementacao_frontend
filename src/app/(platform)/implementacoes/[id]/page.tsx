@@ -146,6 +146,7 @@ export default function ImplementationPage({ params }: { params: Promise<{ id: s
 
 function QuestionAnswer({ question, onSave }: { question: Question; onSave: (body: Record<string, unknown>) => Promise<void> }) {
   const [saving, setSaving] = useState(false);
+  const [confirmTraining, setConfirmTraining] = useState(false);
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -165,8 +166,12 @@ function QuestionAnswer({ question, onSave }: { question: Question; onSave: (bod
   }
 
   return <section className={styles.liveQuestion}>
-    <div className={styles.liveQuestionTitle}><span>{question.code}</span><div><strong>{question.prompt}</strong><div className={styles.questionMeta}><small>{question.required ? 'Obrigatória' : 'Opcional'}</small>{question.responseConfig?.trainingUrl ? <a className={styles.trainingAction} href={question.responseConfig.trainingUrl} target="_blank" rel="noreferrer">Assistir treinamento ↗</a> : null}</div></div>{isCompleted(question) ? <b>Concluído</b> : isAnswered(question) ? <b data-progress>Em andamento</b> : <b data-empty>Não respondida</b>}</div>
-    {question.responseType === 'CHECKLIST' ? <select aria-label={`Resposta de ${question.code}`} value={question.checklistValue ?? ''} disabled={saving} onChange={(event) => selectChecklist(event.target.value)}><option value="" disabled>Selecione uma situação</option><option value="COMPLETED">Concluído</option><option value="IN_PROGRESS">Em andamento</option><option value="NOT_DONE">Não realizado</option></select> : <form onSubmit={submit}><input name="value" type={question.responseType === 'NUMBER' ? 'number' : 'text'} maxLength={question.responseType === 'SHORT_TEXT' ? 100 : undefined} defaultValue={question.numberValue ?? question.textValue ?? ''} required /><button className={styles.secondaryButton} disabled={saving}>{saving ? 'Salvando…' : 'Salvar resposta'}</button></form>}
+    <div className={styles.liveQuestionTitle}><span>{question.code}</span><div><strong>{question.prompt}</strong><div className={styles.questionMeta}><small>{question.required ? 'Obrigatória' : 'Opcional'}</small></div></div>{isCompleted(question) ? <b>Concluído</b> : isAnswered(question) ? <b data-progress>Em andamento</b> : <b data-empty>Não respondida</b>}</div>
+    <div className={styles.answerControlRow}>
+      {question.responseType === 'CHECKLIST' ? <select aria-label={`Resposta de ${question.code}`} value={question.checklistValue ?? ''} disabled={saving} onChange={(event) => selectChecklist(event.target.value)}><option value="" disabled>Selecione uma situação</option><option value="COMPLETED">Concluído</option><option value="IN_PROGRESS">Em andamento</option><option value="NOT_DONE">Não realizado</option></select> : <form onSubmit={submit}><input name="value" type={question.responseType === 'NUMBER' ? 'number' : 'text'} maxLength={question.responseType === 'SHORT_TEXT' ? 100 : undefined} defaultValue={question.numberValue ?? question.textValue ?? ''} required /><button className={styles.secondaryButton} disabled={saving}>{saving ? 'Salvando…' : 'Salvar resposta'}</button></form>}
+      {question.responseConfig?.trainingUrl ? <button className={styles.trainingButton} type="button" aria-label={`Abrir treinamento de ${question.code}`} onClick={() => setConfirmTraining(true)}><span aria-hidden="true">▶</span><strong>Treinamento</strong></button> : null}
+    </div>
     {question.answeredByName ? <footer>Atualizado por {question.answeredByName}{question.checklistValue ? ` · ${checklistLabels[question.checklistValue]}` : ''}</footer> : null}
+    {confirmTraining && question.responseConfig?.trainingUrl ? <div className={styles.trainingDialogBackdrop} role="presentation"><div className={styles.trainingDialog} role="dialog" aria-modal="true" aria-labelledby={`training-title-${question.id}`}><button className={styles.trainingDialogClose} type="button" aria-label="Fechar" onClick={() => setConfirmTraining(false)}>×</button><span className={styles.trainingDialogIcon} aria-hidden="true">▶</span><h3 id={`training-title-${question.id}`}>Abrir link de treinamento?</h3><p>Isso é um link de treinamento. Deseja realmente abrir?</p><div><button type="button" className={styles.editorCancel} onClick={() => setConfirmTraining(false)}>Cancelar</button><a className={styles.button} href={question.responseConfig.trainingUrl} target="_blank" rel="noopener noreferrer" onClick={() => setConfirmTraining(false)}>Abrir treinamento</a></div></div></div> : null}
   </section>;
 }

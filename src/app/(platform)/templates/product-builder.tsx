@@ -65,31 +65,39 @@ export function ProductBuilder() {
     setEditor({ phaseCode: phase.code, questionIndex: index, code, text, type: responseTypes.includes(type) ? type : 'Caixa de seleção', required, config: config ?? defaultConfig(type) });
   }
 
-  function saveQuestion(event: FormEvent<HTMLFormElement>) {
+  async function saveQuestion(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!editor || !editor.text.trim()) return;
-    setPhases((current) => current.map((item) => {
+    const nextPhases = phases.map((item) => {
       if (item.code !== editor.phaseCode) return item;
       const question: EditableQuestion = [editor.code, editor.text.trim(), editor.type, editor.required, editor.config];
       const questions = [...item.questions];
       if (editor.questionIndex === null) questions.push(question); else questions[editor.questionIndex] = question;
       return { ...item, questions };
-    }));
-    setEditor(null);
+    });
+    setPhases(nextPhases);
+    const saved = await persistProduct(nextPhases, 'Pergunta e treinamento salvos. A implementação já foi atualizada.');
+    if (saved) setEditor(null);
   }
 
-  async function saveProduct() {
-    if (!versionId) return;
+  async function persistProduct(nextPhases: EditablePhase[], successMessage: string) {
+    if (!versionId) return false;
     setSaving(true); setMessage('');
     try {
       await apiRequest(`/products/template-versions/${versionId}/configuration`, {
         method: 'PATCH',
-        body: JSON.stringify({ phases: phases.map((item) => ({ ...item, questions: item.questions.map(([code, text, type, required, config]) => ({ code, text, type, required, config })) })) }),
+        body: JSON.stringify({ phases: nextPhases.map((item) => ({ ...item, questions: item.questions.map(([code, text, type, required, config]) => ({ code, text, type, required, config })) })) }),
       });
-      setMessage('Produto salvo. Módulos, prazos e treinamentos já estão disponíveis para novas empresas.');
+      setMessage(successMessage);
+      return true;
     } catch (error) {
       setMessage(error instanceof Error ? error.message : 'Não foi possível salvar o produto.');
+      return false;
     } finally { setSaving(false); }
+  }
+
+  async function saveProduct() {
+    await persistProduct(phases, 'Produto salvo. Módulos, prazos e treinamentos já foram sincronizados com as implementações.');
   }
 
   return <>
@@ -125,7 +133,7 @@ export function ProductBuilder() {
           <label className={styles.editorField}>Link de treinamento<input type="url" value={editor.config.trainingUrl ?? ''} onChange={(event) => setEditor({ ...editor, config: { ...editor.config, trainingUrl: event.target.value } })} placeholder="https://..." /><small>O botão será exibido na implementação, mas só poderá ser alterado aqui no Produto.</small></label>
           <label className={styles.requiredToggle}><input type="checkbox" checked={editor.required} onChange={(event) => setEditor({ ...editor, required: event.target.checked })} /><span><strong>Obrigatória</strong><small>A fase não avança enquanto esta tarefa estiver pendente.</small></span></label>
         </div>
-        <div className={styles.editorActions}><button type="button" className={styles.editorCancel} onClick={() => setEditor(null)}>Cancelar</button><button type="submit" className={styles.button}>Salvar pergunta</button></div>
+        <div className={styles.editorActions}><button type="button" className={styles.editorCancel} disabled={saving} onClick={() => setEditor(null)}>Cancelar</button><button type="submit" className={styles.button} disabled={saving}>{saving ? 'Salvando…' : 'Salvar pergunta'}</button></div>
       </form></div> : null}
     </section>
   </>;

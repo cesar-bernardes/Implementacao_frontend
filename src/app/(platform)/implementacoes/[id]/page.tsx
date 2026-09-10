@@ -12,7 +12,7 @@ type Question = {
   prompt: string;
   responseType: 'CHECKLIST' | 'NUMBER' | 'SHORT_TEXT';
   required: boolean;
-  responseConfig: { trainingUrl?: string } | null;
+  responseConfig: { trainingUrl?: string; description?: string } | null;
   checklistValue: 'COMPLETED' | 'IN_PROGRESS' | 'NOT_DONE' | null;
   numberValue: string | null;
   textValue: string | null;
@@ -167,7 +167,7 @@ function QuestionAnswer({ question, onSave }: { question: Question; onSave: (bod
   }
 
   return <section className={`${styles.liveQuestion} ${layout.questionRow}`}>
-    <div className={`${styles.liveQuestionTitle} ${layout.questionTitle}`}><span>{question.code}</span><div><strong>{question.prompt}</strong><div className={styles.questionMeta}><small>{question.required ? 'Obrigatória' : 'Opcional'}</small></div></div>{isCompleted(question) ? <b>Concluído</b> : isAnswered(question) ? <b data-progress>Em andamento</b> : <b data-empty>Não respondida</b>}</div>
+    <div className={`${styles.liveQuestionTitle} ${layout.questionTitle}`}><span>{question.code}</span><div><strong>{question.prompt}</strong>{question.responseConfig?.description ? <p className={styles.questionDescription}>{question.responseConfig.description}</p> : null}<div className={styles.questionMeta}><small>{question.required ? 'Obrigatória' : 'Opcional'}</small></div></div>{isCompleted(question) ? <b>Concluído</b> : isAnswered(question) ? <b data-progress>Em andamento</b> : <b data-empty>Não respondida</b>}</div>
     <div className={`${styles.answerControlRow} ${layout.answerRow}`}>
       {question.responseType === 'CHECKLIST' ? <select aria-label={`Resposta de ${question.code}`} value={question.checklistValue ?? ''} disabled={saving} onChange={(event) => selectChecklist(event.target.value)}><option value="" disabled>Selecione uma situação</option><option value="COMPLETED">Concluído</option><option value="IN_PROGRESS">Em andamento</option><option value="NOT_DONE">Não realizado</option></select> : <form onSubmit={submit}><input name="value" type={question.responseType === 'NUMBER' ? 'number' : 'text'} maxLength={question.responseType === 'SHORT_TEXT' ? 100 : undefined} defaultValue={question.numberValue ?? question.textValue ?? ''} required /><button className={styles.secondaryButton} disabled={saving}>{saving ? 'Salvando…' : 'Salvar resposta'}</button></form>}
       <button className={styles.trainingButton} type="button" data-available={Boolean(question.responseConfig?.trainingUrl)} disabled={!question.responseConfig?.trainingUrl} title={question.responseConfig?.trainingUrl ? 'Abrir treinamento' : 'Cadastre o link na aba Produto'} aria-label={question.responseConfig?.trainingUrl ? `Abrir treinamento de ${question.code}` : `Treinamento ainda não cadastrado para ${question.code}`} onClick={() => setConfirmTraining(true)}><span aria-hidden="true">▶</span><strong>{question.responseConfig?.trainingUrl ? 'Treino' : 'Sem link'}</strong></button>

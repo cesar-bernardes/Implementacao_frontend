@@ -6,7 +6,7 @@ import { productPhases } from '../../_data/demo';
 import styles from '../platform.module.css';
 import controls from './product-builder-controls.module.css';
 
-type AnswerConfig = { options?: string[]; min?: string; max?: string; decimals?: boolean; placeholder?: string; maxLength?: string; trainingUrl?: string };
+type AnswerConfig = { options?: string[]; min?: string; max?: string; decimals?: boolean; placeholder?: string; maxLength?: string; trainingUrl?: string; description?: string };
 type EditableQuestion = [code: string, text: string, type: string, required: boolean, config?: AnswerConfig];
 type EditablePhase = { code: string; name: string; order: number; isBase: boolean; durationWeeks: number; meetingsPerWeek: number; questions: EditableQuestion[] };
 type EditorState = { phaseCode: string; questionIndex: number | null; code: string; text: string; type: string; required: boolean; config: AnswerConfig };
@@ -26,12 +26,26 @@ function defaultConfig(type: string): AnswerConfig {
   return {};
 }
 
+function splitLegacyQuestion(text: string, description?: string) {
+  if (description?.trim()) return { question: text.trim(), description: description.trim() };
+  const trimmed = text.trim();
+  const sentenceEnd = trimmed.search(/[.!?](?:\s|$)/);
+  if (sentenceEnd < 0) return { question: trimmed, description: '' };
+  return {
+    question: trimmed.slice(0, sentenceEnd + 1).trim(),
+    description: trimmed.slice(sentenceEnd + 1).trim(),
+  };
+}
+
 function normalizePhases(phases?: ApiPhase[]): EditablePhase[] {
   if (!phases?.length) return initialPhases;
   return phases.map((phase, index) => ({
     code: phase.code, name: phase.name, order: phase.order ?? index + 1, isBase: Boolean(phase.isBase),
     durationWeeks: Math.max(1, Number(phase.durationWeeks) || 1), meetingsPerWeek: Math.max(0, Number(phase.meetingsPerWeek) || 0),
-    questions: phase.questions.map((question) => [question.code, question.text, question.type, question.required, question.config]),
+    questions: phase.questions.map((question) => {
+      const content = splitLegacyQuestion(question.text, question.config?.description);
+      return [question.code, content.question, question.type, question.required, { ...question.config, description: content.description || undefined }];
+    }),
   }));
 }
 
@@ -182,8 +196,9 @@ export function ProductBuilder() {
       {editor ? <div className={styles.editorBackdrop} role="presentation"><form className={styles.questionEditor} role="dialog" aria-modal="true" aria-labelledby="question-editor-title" onSubmit={saveQuestion}>
         <div className={styles.editorHeader}><div><span>{editor.questionIndex === null ? 'NOVA PERGUNTA' : 'EDITAR PERGUNTA'}</span><h2 id="question-editor-title">Configurar pergunta</h2></div><button type="button" className={styles.editorClose} aria-label="Fechar" onClick={() => setEditor(null)}>×</button></div>
         <div className={styles.editorBody}>
-          <label className={styles.editorField}>Pergunta<textarea value={editor.text} onChange={(event) => setEditor({ ...editor, text: event.target.value })} rows={4} placeholder="Digite a tarefa da implementação" autoFocus required /></label>
-          <div className={styles.editorGrid}><label className={styles.editorField}>Tipo de resposta<select value={editor.type} onChange={(event) => setEditor({ ...editor, type: event.target.value, config: { ...defaultConfig(event.target.value), trainingUrl: editor.config.trainingUrl } })}>{responseTypes.map((type) => <option key={type} value={type}>{type}</option>)}</select></label><label className={styles.editorField}>Código interno<input value={editor.code} onChange={(event) => setEditor({ ...editor, code: event.target.value })} disabled={editor.questionIndex !== null} /></label></div>
+          <label className={styles.editorField}>Pergunta<input value={editor.text} maxLength={150} onChange={(event) => setEditor({ ...editor, text: event.target.value })} placeholder="Ex.: Registrar motoristas" autoFocus required /><small>Use um resumo curto e direto. O detalhamento deve ficar na descrição.</small></label>
+          <label className={styles.editorField}>Descrição<textarea value={editor.config.description ?? ''} onChange={(event) => setEditor({ ...editor, config: { ...editor.config, description: event.target.value } })} rows={4} placeholder="Descreva o que precisa ser feito, testado e validado." /></label>
+          <div className={styles.editorGrid}><label className={styles.editorField}>Tipo de resposta<select value={editor.type} onChange={(event) => setEditor({ ...editor, type: event.target.value, config: { ...defaultConfig(event.target.value), trainingUrl: editor.config.trainingUrl, description: editor.config.description } })}>{responseTypes.map((type) => <option key={type} value={type}>{type}</option>)}</select></label><label className={styles.editorField}>Código interno<input value={editor.code} onChange={(event) => setEditor({ ...editor, code: event.target.value })} disabled={editor.questionIndex !== null} /></label></div>
           <AnswerConfiguration editor={editor} onChange={setEditor} />
           <label className={styles.editorField}>Link de treinamento<input type="url" value={editor.config.trainingUrl ?? ''} onChange={(event) => setEditor({ ...editor, config: { ...editor.config, trainingUrl: event.target.value } })} placeholder="https://..." /><small>O botão será exibido na implementação, mas só poderá ser alterado aqui no Produto.</small></label>
           <label className={styles.requiredToggle}><input type="checkbox" checked={editor.required} onChange={(event) => setEditor({ ...editor, required: event.target.checked })} /><span><strong>Obrigatória</strong><small>A fase não avança enquanto esta tarefa estiver pendente.</small></span></label>

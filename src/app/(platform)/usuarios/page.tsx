@@ -10,7 +10,7 @@ type GlobalUser = {
   email: string;
   globalRole: 'GLOBAL_ADMIN' | 'GLOBAL_RESTRICTED';
   active: boolean;
-  memberships: Array<{ status: 'INVITED' | 'ACTIVE' | 'SUSPENDED' }>;
+  invitationStatus: 'INVITED' | 'ACTIVE';
 };
 
 type InviteResponse = { user: GlobalUser; message: string };
@@ -85,8 +85,7 @@ export default function Users() {
           {loading ? <tr><td colSpan={3} className={styles.muted}>Carregando usuários…</td></tr> : null}
           {!loading && !users.length ? <tr><td colSpan={3} className={styles.muted}>Nenhum usuário global cadastrado.</td></tr> : null}
           {users.map((user) => {
-            const status = user.memberships[0]?.status;
-            return <tr key={user.id}><td><strong>{user.name}</strong><small className={styles.tableNote}>{user.email}</small></td><td>{roleLabels[user.globalRole]}</td><td><span className={styles.pill}>{!user.active ? 'Inativo' : status === 'INVITED' ? 'Convite enviado' : 'Ativo'}</span></td></tr>;
+            return <tr key={user.id}><td><strong>{user.name}</strong><small className={styles.tableNote}>{user.email}</small></td><td>{roleLabels[user.globalRole]}</td><td><span className={styles.pill}>{!user.active ? 'Inativo' : user.invitationStatus === 'INVITED' ? 'Convite enviado' : 'Ativo'}</span></td></tr>;
           })}
         </tbody>
       </table>

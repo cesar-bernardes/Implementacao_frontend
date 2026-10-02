@@ -5,6 +5,23 @@
   gap: 8px;
 }
 
+.productSelector {
+  display: grid;
+  gap: 5px;
+}
+
+.productSelector select {
+  min-width: 220px;
+  padding: 7px 30px 7px 9px;
+  border: 1px solid #cbd6cd;
+  border-radius: 8px;
+  background: #fff;
+  color: #15231b;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 700;
+}
+
 .phaseAction,
 .phaseDelete {
   min-height: 38px;
@@ -80,4 +97,3 @@
     grid-template-columns: 1fr;
   }
 }
-

@@ -12,7 +12,8 @@ type EditablePhase = { code: string; name: string; order: number; isBase: boolea
 type EditorState = { phaseCode: string; questionIndex: number | null; code: string; text: string; type: string; required: boolean; config: AnswerConfig };
 type ApiQuestion = { code: string; text: string; type: string; required: boolean; config?: AnswerConfig };
 type ApiPhase = Omit<EditablePhase, 'questions'> & { questions: ApiQuestion[] };
-type ProductConfiguration = Array<{ name: string; templates: Array<{ versions: Array<{ id: string; definition: { phases?: ApiPhase[] } }> }> }>;
+type ProductRecord = { id: string; name: string; slug: string; templates: Array<{ id: string; name: string; versions: Array<{ id: string; version: number; definition: { phases?: ApiPhase[] } }> }> };
+type ProductConfiguration = ProductRecord[];
 
 const initialPhases: EditablePhase[] = productPhases.map((item) => ({
   code: item.code, name: item.name, order: item.order, isBase: false, durationWeeks: 1, meetingsPerWeek: 1,
@@ -54,6 +55,8 @@ export function ProductBuilder() {
   const [selected, setSelected] = useState('F01');
   const [versionId, setVersionId] = useState('');
   const [productName, setProductName] = useState('GD Frotas');
+  const [products, setProducts] = useState<ProductConfiguration>([]);
+  const [creatingProduct, setCreatingProduct] = useState(false);
   const [editor, setEditor] = useState<EditorState | null>(null);
   const [renamingPhase, setRenamingPhase] = useState(false);
   const [phaseNameDraft, setPhaseNameDraft] = useState('');
@@ -61,17 +64,47 @@ export function ProductBuilder() {
   const [message, setMessage] = useState('');
   const phase = phases.find((item) => item.code === selected) ?? phases[0];
 
-  useEffect(() => {
-    apiRequest<ProductConfiguration>('/products/configuration').then((products) => {
-      const version = products[0]?.templates[0]?.versions[0];
+  function selectProduct(product: ProductRecord) {
+      const version = product.templates[0]?.versions[0];
       if (!version) throw new Error('Nenhuma versão publicada encontrada.');
-      setProductName(products[0]?.name ?? 'GD Frotas');
+      setProductName(product.name);
       setVersionId(version.id);
       const loadedPhases = normalizePhases(version.definition.phases);
       setPhases(loadedPhases);
       setSelected(loadedPhases[0]?.code ?? '');
-    }).catch((error: unknown) => setMessage(error instanceof Error ? error.message : 'Não foi possível carregar o produto.'));
+      setRenamingPhase(false);
+      setEditor(null);
+  }
+
+  useEffect(() => {
+    apiRequest<ProductConfiguration>('/products/configuration').then((loadedProducts) => {
+      if (!loadedProducts.length) throw new Error('Nenhum produto cadastrado.');
+      setProducts(loadedProducts);
+      selectProduct(loadedProducts[0]);
+    }).catch((error: unknown) => setMessage(error instanceof Error ? error.message : 'Não foi possível carregar os produtos.'));
   }, []);
+
+  async function createProduct(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setSaving(true); setMessage('');
+    const form = new FormData(event.currentTarget);
+    try {
+      const product = await apiRequest<ProductRecord>('/products', {
+        method: 'POST',
+        body: JSON.stringify({
+          name: String(form.get('name') ?? ''),
+          templateName: String(form.get('templateName') ?? ''),
+          initialPhaseName: String(form.get('initialPhaseName') ?? ''),
+        }),
+      });
+      setProducts((current) => [...current, product].sort((a, b) => a.name.localeCompare(b.name, 'pt-BR')));
+      selectProduct(product);
+      setCreatingProduct(false);
+      setMessage(`Produto ${product.name} criado. Agora configure suas fases e perguntas.`);
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : 'Não foi possível criar o produto.');
+    } finally { setSaving(false); }
+  }
 
   function updatePhase(values: Partial<EditablePhase>) {
     setPhases((current) => current.map((item) => item.code === phase.code ? { ...item, ...values } : item));
@@ -111,6 +144,22 @@ export function ProductBuilder() {
       setPhases(previousPhases);
       setSelected(phase.code);
     }
+  }
+
+  async function addPhase() {
+    const usedCodes = new Set(phases.map((item) => item.code));
+    let number = phases.length + 1;
+    while (usedCodes.has(`F${String(number).padStart(2, '0')}`)) number += 1;
+    const code = `F${String(number).padStart(2, '0')}`;
+    const nextPhases = [...phases, {
+      code, name: 'Nova fase', order: phases.length + 1, isBase: false,
+      durationWeeks: 1, meetingsPerWeek: 1, questions: [],
+    }];
+    setPhases(nextPhases);
+    setSelected(code);
+    setPhaseNameDraft('Nova fase');
+    const saved = await persistProduct(nextPhases, 'Nova fase adicionada ao produto.');
+    if (saved) setRenamingPhase(true);
   }
 
   function openNewQuestion() {
@@ -168,13 +217,15 @@ export function ProductBuilder() {
   const totalQuestions = phases.reduce((total, item) => total + item.questions.length, 0);
 
   return <>
-    <div className={styles.productMeta}><span><small>PRODUTO</small><strong>{productName}</strong></span><span><small>ESTRUTURA</small><strong>{phases.length} fases · {totalQuestions} perguntas</strong></span></div>
+    <div className={styles.heading}><div><span>Produtos e metodologia própria</span><h1>{productName}</h1></div><button className={styles.button} type="button" onClick={() => { setMessage(''); setCreatingProduct(true); }}>+ Criar produto</button></div>
+    <div className={styles.productMeta}><label className={controls.productSelector}><small>PRODUTO</small><select value={versionId} onChange={(event) => { const product = products.find((item) => item.templates.some((template) => template.versions.some((version) => version.id === event.target.value))); if (product) selectProduct(product); }}>{products.map((product) => { const version = product.templates[0]?.versions[0]; return version ? <option key={product.id} value={version.id}>{product.name}</option> : null; })}</select></label><span><small>ESTRUTURA</small><strong>{phases.length} fases · {totalQuestions} perguntas</strong></span></div>
     <div className={styles.productSaveBar}><div><strong>Configuração comercial e de implantação</strong><span>Defina módulos base, duração, reuniões e materiais de treinamento.</span></div><button className={styles.button} type="button" disabled={saving || !versionId} onClick={saveProduct}>{saving ? 'Salvando…' : 'Salvar produto'}</button></div>
     {message ? <p className={styles.productMessage} role="status">{message}</p> : null}
     <section className={styles.builder}>
       <aside className={styles.phaseList}>
         <div className={styles.builderHeader}><span>MÓDULOS DO PRODUTO</span><strong>Fases contratáveis</strong></div>
         {phases.map((item) => <button key={item.code} type="button" data-active={item.code === phase.code} onClick={() => setSelected(item.code)}><small>{item.code}</small><span>{item.name}</span><b>{item.isBase ? 'Base' : item.questions.length}</b></button>)}
+        <button type="button" className={styles.addPhase} disabled={saving} onClick={addPhase}>+ Adicionar fase</button>
       </aside>
       <article className={styles.questionPanel}>
         <div className={styles.panelHeading}><div><span>MÓDULO {phase.order}</span><h2>{phase.name}</h2><p>{phase.questions.length} tarefas nesta fase</p></div><div className={controls.phaseActions}><button className={controls.phaseAction} type="button" disabled={saving} onClick={openRenamePhase}>Editar fase</button><button className={controls.phaseDelete} type="button" disabled={saving || phases.length === 1} onClick={deletePhase}>Excluir fase</button><button className={styles.button} type="button" disabled={saving} onClick={openNewQuestion}>+ Nova pergunta</button></div></div>
@@ -206,6 +257,16 @@ export function ProductBuilder() {
         <div className={styles.editorActions}><button type="button" className={styles.editorCancel} disabled={saving} onClick={() => setEditor(null)}>Cancelar</button><button type="submit" className={styles.button} disabled={saving}>{saving ? 'Salvando…' : 'Salvar pergunta'}</button></div>
       </form></div> : null}
     </section>
+    {creatingProduct ? <div className={styles.editorBackdrop} role="presentation"><form className={styles.questionEditor} role="dialog" aria-modal="true" aria-labelledby="create-product-title" onSubmit={createProduct}>
+      <div className={styles.editorHeader}><div><span>NOVO PRODUTO</span><h2 id="create-product-title">Criar produto</h2></div><button type="button" className={styles.editorClose} aria-label="Fechar" onClick={() => setCreatingProduct(false)}>×</button></div>
+      <div className={styles.editorBody}>
+        <label className={styles.editorField}>Nome do produto<input name="name" minLength={2} maxLength={100} placeholder="Ex.: GD Financeiro" autoFocus required /><small>O identificador interno será criado automaticamente.</small></label>
+        <label className={styles.editorField}>Nome da metodologia<input name="templateName" minLength={2} maxLength={100} defaultValue="Implantação padrão" required /></label>
+        <label className={styles.editorField}>Primeira fase<input name="initialPhaseName" minLength={2} maxLength={100} defaultValue="Configuração inicial" required /><small>O produto começa com uma fase base. Depois você poderá editar e adicionar as perguntas.</small></label>
+        {message ? <p className={styles.formError} role="alert">{message}</p> : null}
+      </div>
+      <div className={styles.editorActions}><button type="button" className={styles.editorCancel} disabled={saving} onClick={() => setCreatingProduct(false)}>Cancelar</button><button type="submit" className={styles.button} disabled={saving}>{saving ? 'Criando…' : 'Criar produto'}</button></div>
+    </form></div> : null}
   </>;
 }
 

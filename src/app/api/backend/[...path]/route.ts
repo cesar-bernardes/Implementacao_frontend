@@ -4,6 +4,7 @@ const ACCESS_COOKIE = 'gdtech_access';
 const REFRESH_COOKIE = 'gdtech_refresh';
 const BACKEND_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001/api/v1';
 const SESSION_PATHS = new Set(['auth/login', 'auth/first-access', 'auth/first-access/temporary']);
+const LOGOUT_PATH = 'auth/logout';
 
 type BackendSession = { accessToken: string; refreshToken: string; expiresAt?: number; user?: unknown };
 
@@ -32,6 +33,15 @@ async function handler(request: Request, context: { params: Promise<{ path: stri
   const body = request.method === 'GET' || request.method === 'HEAD' ? undefined : await request.arrayBuffer();
   let accessToken = cookieStore.get(ACCESS_COOKIE)?.value;
   let upstream = await forward(request, path, accessToken, body);
+
+  if (path === LOGOUT_PATH) {
+    cookieStore.delete(ACCESS_COOKIE);
+    cookieStore.delete(REFRESH_COOKIE);
+    return new Response(await upstream.arrayBuffer(), {
+      status: upstream.status,
+      headers: { 'content-type': upstream.headers.get('content-type') ?? 'application/json' },
+    });
+  }
 
   if (upstream.status === 401 && !SESSION_PATHS.has(path) && path !== 'auth/refresh' && cookieStore.get(REFRESH_COOKIE)?.value) {
     const refresh = await fetch(`${BACKEND_URL}/auth/refresh`, {

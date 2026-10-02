@@ -1,6 +1,6 @@
 'use client';
 
-import { FormEvent, useCallback, useEffect, useState } from 'react';
+import { FormEvent, useEffect, useState } from 'react';
 import { apiRequest } from '../../../lib/api';
 import styles from '../platform.module.css';
 
@@ -38,17 +38,24 @@ export default function Users() {
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
 
-  const loadUsers = useCallback(async () => {
-    try {
-      setUsers(await apiRequest<GlobalUser[]>('/global-users'));
-    } catch (requestError) {
-      setError(errorMessage(requestError));
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+  useEffect(() => {
+    let cancelled = false;
 
-  useEffect(() => { void loadUsers(); }, [loadUsers]);
+    apiRequest<GlobalUser[]>('/global-users')
+      .then((result) => {
+        if (!cancelled) setUsers(result);
+      })
+      .catch((requestError: unknown) => {
+        if (!cancelled) setError(errorMessage(requestError));
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   async function invite(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();

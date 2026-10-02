@@ -13,12 +13,16 @@ export default function FirstAccessPage() {
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
-    const params = new URLSearchParams(window.location.hash.slice(1));
-    setAccessToken(params.get('access_token') ?? '');
-    const authError = params.get('error_description');
-    if (authError) setError('O link recebido expirou. Use a senha temporária fornecida pelo administrador.');
-    const query = new URLSearchParams(window.location.search);
-    setEmail(query.get('email') ?? window.sessionStorage.getItem('gdtech.firstAccessEmail') ?? '');
+    const timer = window.setTimeout(() => {
+      const params = new URLSearchParams(window.location.hash.slice(1));
+      setAccessToken(params.get('access_token') ?? '');
+      const authError = params.get('error_description');
+      if (authError) setError('O link recebido expirou. Use a senha temporária fornecida pelo administrador.');
+      const query = new URLSearchParams(window.location.search);
+      setEmail(query.get('email') ?? window.sessionStorage.getItem('gdtech.firstAccessEmail') ?? '');
+    }, 0);
+
+    return () => window.clearTimeout(timer);
   }, []);
 
   async function submitTemporary(event: FormEvent<HTMLFormElement>) {

@@ -1,0 +1,57 @@
+.logoutButton {
+  margin-top: 12px;
+  padding: 9px 10px;
+  border: 1px solid #34483c;
+  border-radius: 8px;
+  background: transparent;
+  color: #b9c7be;
+  font: inherit;
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.logoutButton:hover {
+  border-color: #667c6d;
+  background: #17271e;
+  color: #ffffff;
+}
+
+.logoutButton:focus-visible {
+  outline: 2px solid #b9f227;
+  outline-offset: 2px;
+}
+
+.logoutButton:disabled {
+  cursor: wait;
+  opacity: 0.65;
+}
+
+.mobileLogoutButton {
+  display: none;
+}
+
+@media (max-width: 760px) {
+  .logoutButton {
+    padding: 8px 4px;
+    font-size: 0;
+  }
+
+  .logoutButton::before {
+    content: 'Sair';
+    font-size: 10px;
+  }
+
+  .mobileLogoutButton {
+    display: inline-flex;
+    padding: 7px 10px;
+    border: 1px solid #cbd6cd;
+    border-radius: 8px;
+    background: #ffffff;
+    color: #294133;
+    font: inherit;
+    font-size: 11px;
+    font-weight: 700;
+    cursor: pointer;
+  }
+}

@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { apiRequest } from '../../../lib/api';
 import styles from '../platform.module.css';
+import monitor from './implementation-monitor.module.css';
 
 type Implementation = {
   id: string;
@@ -35,8 +36,18 @@ export function ImplementationMonitor() {
   if (!implementations) return <div className={styles.card}><p>Carregando implementações…</p></div>;
   if (!implementations.length) return <div className={styles.card}><h2>Nenhuma implementação cadastrada</h2><p>Use “Iniciar implementação” para associar uma empresa a uma versão publicada do produto.</p></div>;
 
-  return <div className={styles.tableCard}><table className={styles.table}>
-    <thead><tr><th>Implementação</th><th>Empresa</th><th>Produto contratado</th><th>Responsável</th><th>Período</th><th>Planejamento</th><th>Status</th><th /></tr></thead>
+  return <div className={`${styles.tableCard} ${monitor.card}`}><table className={`${styles.table} ${monitor.table}`}>
+    <colgroup>
+      <col className={monitor.implementationColumn} />
+      <col className={monitor.companyColumn} />
+      <col className={monitor.productColumn} />
+      <col className={monitor.ownerColumn} />
+      <col className={monitor.periodColumn} />
+      <col className={monitor.planningColumn} />
+      <col className={monitor.statusColumn} />
+      <col className={monitor.actionColumn} />
+    </colgroup>
+    <thead><tr><th>Implementação</th><th>Empresa</th><th>Produto contratado</th><th>Responsável</th><th>Período</th><th>Planejamento</th><th>Status</th><th className={monitor.actionHeading}>Ação</th></tr></thead>
     <tbody>{implementations.map((implementation) => <tr key={implementation.id}>
       <td><strong>{implementation.name}</strong></td>
       <td>{implementation.organization.tradeName}</td>
@@ -45,7 +56,7 @@ export function ImplementationMonitor() {
       <td className={styles.muted}>{implementation.startedAt ? new Date(implementation.startedAt).toLocaleDateString('pt-BR', { timeZone: 'UTC' }) : 'A definir'} → {implementation.dueAt ? new Date(implementation.dueAt).toLocaleDateString('pt-BR', { timeZone: 'UTC' }) : 'A definir'}</td>
       <td className={styles.muted}>{implementation.estimatedWeeks || 0} sem. · {implementation.plannedMeetings || 0} reuniões</td>
       <td><span className={styles.pill}>{statusLabels[implementation.status] ?? implementation.status}</span></td>
-      <td><Link className={styles.secondaryButton} href={`/implementacoes/${implementation.id}`}>Abrir etapas</Link></td>
+      <td className={monitor.actionCell}><Link className={`${styles.secondaryButton} ${monitor.actionButton}`} href={`/implementacoes/${implementation.id}`}>Abrir etapas</Link></td>
     </tr>)}</tbody>
   </table></div>;
 }

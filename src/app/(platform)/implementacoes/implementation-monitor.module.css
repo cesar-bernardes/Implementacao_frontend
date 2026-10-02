@@ -1,0 +1,60 @@
+.card {
+  overflow-x: auto;
+}
+
+.table {
+  min-width: 1120px;
+  table-layout: fixed;
+}
+
+.table th,
+.table td {
+  vertical-align: middle;
+}
+
+.implementationColumn {
+  width: 20%;
+}
+
+.companyColumn {
+  width: 8%;
+}
+
+.productColumn {
+  width: 14%;
+}
+
+.ownerColumn {
+  width: 11%;
+}
+
+.periodColumn {
+  width: 15%;
+}
+
+.planningColumn {
+  width: 12%;
+}
+
+.statusColumn {
+  width: 11%;
+}
+
+.actionColumn {
+  width: 9%;
+}
+
+.actionHeading,
+.actionCell {
+  text-align: right !important;
+}
+
+.actionButton {
+  white-space: nowrap;
+}
+
+@media (max-width: 650px) {
+  .table {
+    min-width: 980px;
+  }
+}

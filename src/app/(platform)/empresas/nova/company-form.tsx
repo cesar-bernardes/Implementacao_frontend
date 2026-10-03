@@ -3,6 +3,7 @@
 import { FormEvent, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import styles from '../../platform.module.css';
+import formStyles from './company-form.module.css';
 import { apiRequest } from '../../../../lib/api';
 
 type CreatedOrganization = { id: string; tradeName: string };
@@ -45,15 +46,25 @@ export function CompanyForm() {
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    setSaving(true);
     setError(null);
     const form = new FormData(event.currentTarget);
     const companyName = String(form.get('tradeName') ?? 'Nova empresa');
     const users = [
-      ...owners.map((index) => ({ name: String(form.get(`owner[${index}].name`) ?? ''), email: String(form.get(`owner[${index}].email`) ?? ''), phone: String(form.get(`owner[${index}].phone`) ?? ''), role: 'OWNER' as const })),
-      ...supervisors.map((index) => ({ name: String(form.get(`supervisor[${index}].name`) ?? ''), email: String(form.get(`supervisor[${index}].email`) ?? ''), phone: String(form.get(`supervisor[${index}].phone`) ?? ''), role: 'SUPERVISOR' as const })),
-      ...responsibles.map((index) => ({ name: String(form.get(`responsible[${index}].name`) ?? ''), email: String(form.get(`responsible[${index}].email`) ?? ''), phone: String(form.get(`responsible[${index}].phone`) ?? ''), role: 'IMPLEMENTATION_RESPONSIBLE' as const })),
+      ...owners.map((index) => memberFromForm(form, 'owner', index, 'OWNER')),
+      ...supervisors.map((index) => memberFromForm(form, 'supervisor', index, 'SUPERVISOR')),
+      ...responsibles.map((index) => memberFromForm(form, 'responsible', index, 'IMPLEMENTATION_RESPONSIBLE')),
     ];
+    const passwordError = users.find((user) => user.password !== user.passwordConfirmation);
+    if (passwordError) {
+      setError(`A senha e a confirmação de ${passwordError.name || passwordError.email} não são iguais.`);
+      return;
+    }
+    const normalizedEmails = users.map((user) => user.email.trim().toLowerCase());
+    if (new Set(normalizedEmails).size !== normalizedEmails.length) {
+      setError('Cada colaborador deve possuir um e-mail diferente.');
+      return;
+    }
+    setSaving(true);
     const location = String(form.get('location') ?? '').trim();
     const locationMatch = location.match(/^(.+?)(?:\s*\/\s*([A-Za-z]{2}))?$/);
     try {
@@ -67,7 +78,7 @@ export function CompanyForm() {
       });
       setSaved(true);
     } catch (requestError) {
-      setError(requestError instanceof Error ? requestError.message : 'Não foi possível cadastrar a empresa.');
+      setError(apiErrorMessage(requestError));
     } finally {
       setSaving(false);
     }
@@ -127,12 +138,57 @@ function RoleCard({ title, description, role, indexes, onAdd }: { title: string;
     <section className={styles.roleCard}>
       <div className={styles.roleCardHeader}><div><span>{title}</span><strong>{description}</strong></div><button type="button" className={styles.addPersonButton} onClick={onAdd}>+ Adicionar {title.toLowerCase()}</button></div>
       <div className={styles.rolePeopleList}>
-        {indexes.map((index) => <div className={styles.rolePerson} key={index}>
+        {indexes.map((index) => <div className={`${styles.rolePerson} ${formStyles.rolePersonWithPassword}`} key={index}>
           <label>Nome<input required name={`${role}[${index}].name`} placeholder={`Nome do ${title.toLowerCase()}`} /></label>
           <label>E-mail<input required name={`${role}[${index}].email`} type="email" placeholder="contato@empresa.com.br" /></label>
           <label>Telefone<input name={`${role}[${index}].phone`} placeholder="(00) 00000-0000" /></label>
+          <PasswordField label="Criar senha" name={`${role}[${index}].password`} autoComplete="new-password" />
+          <PasswordField label="Confirmar senha" name={`${role}[${index}].passwordConfirmation`} autoComplete="new-password" />
         </div>)}
       </div>
     </section>
   );
+}
+
+function memberFromForm(form: FormData, role: string, index: number, memberRole: 'OWNER' | 'SUPERVISOR' | 'IMPLEMENTATION_RESPONSIBLE') {
+  return {
+    name: String(form.get(`${role}[${index}].name`) ?? ''),
+    email: String(form.get(`${role}[${index}].email`) ?? ''),
+    phone: String(form.get(`${role}[${index}].phone`) ?? ''),
+    password: String(form.get(`${role}[${index}].password`) ?? ''),
+    passwordConfirmation: String(form.get(`${role}[${index}].passwordConfirmation`) ?? ''),
+    role: memberRole,
+  };
+}
+
+function PasswordField({ label, name, autoComplete }: { label: string; name: string; autoComplete: string }) {
+  const [visible, setVisible] = useState(false);
+  const id = name.replace(/[^a-zA-Z0-9_-]/g, '-');
+  return <div className={formStyles.passwordField}>
+    <label htmlFor={id}>{label}</label>
+    <div className={formStyles.passwordInput}>
+      <input id={id} required name={name} type={visible ? 'text' : 'password'} minLength={8} autoComplete={autoComplete} placeholder="Mínimo de 8 caracteres" />
+      <button type="button" className={formStyles.passwordToggle} onClick={() => setVisible((current) => !current)} aria-label={visible ? `Ocultar ${label.toLowerCase()}` : `Mostrar ${label.toLowerCase()}`} aria-pressed={visible}>
+        <EyeIcon crossed={visible} />
+      </button>
+    </div>
+  </div>;
+}
+
+function EyeIcon({ crossed }: { crossed: boolean }) {
+  return <svg aria-hidden="true" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M2.5 12s3.5-6 9.5-6 9.5 6 9.5 6-3.5 6-9.5 6-9.5-6-9.5-6Z" />
+    <circle cx="12" cy="12" r="2.5" />
+    {crossed ? <path d="m4 4 16 16" /> : null}
+  </svg>;
+}
+
+function apiErrorMessage(error: unknown) {
+  if (!(error instanceof Error)) return 'Não foi possível cadastrar a empresa.';
+  try {
+    const body = JSON.parse(error.message) as { message?: string | string[] };
+    return Array.isArray(body.message) ? body.message.join(' ') : body.message ?? error.message;
+  } catch {
+    return error.message;
+  }
 }

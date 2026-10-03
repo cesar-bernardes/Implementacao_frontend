@@ -1,0 +1,71 @@
+.rolePersonWithPassword {
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+}
+
+.rolePersonWithPassword > label {
+  grid-column: span 2;
+}
+
+.passwordField {
+  grid-column: span 3;
+  display: grid;
+  gap: 7px;
+  color: #35433b;
+  font-size: 10px;
+  font-weight: 700;
+}
+
+.passwordInput {
+  position: relative;
+}
+
+.passwordInput input {
+  width: 100%;
+  padding: 9px 42px 9px 10px;
+  border: 1px solid #ccd5cd;
+  border-radius: 8px;
+  background: #fff;
+  color: #132018;
+  font: inherit;
+  font-size: 11px;
+  outline: none;
+}
+
+.passwordInput input:focus {
+  border-color: #6f8e76;
+  box-shadow: 0 0 0 3px #dfe9df;
+}
+
+.passwordToggle {
+  position: absolute;
+  top: 50%;
+  right: 5px;
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
+  color: #5e6d64;
+  cursor: pointer;
+  transform: translateY(-50%);
+}
+
+.passwordToggle:hover,
+.passwordToggle:focus-visible {
+  background: #edf2ed;
+  color: #173321;
+}
+
+@media (max-width: 680px) {
+  .rolePersonWithPassword {
+    grid-template-columns: 1fr;
+  }
+
+  .rolePersonWithPassword > label,
+  .passwordField {
+    grid-column: auto;
+  }
+}
